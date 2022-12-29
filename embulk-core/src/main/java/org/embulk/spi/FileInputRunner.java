@@ -4,6 +4,8 @@ import static org.embulk.exec.GuessExecutor.createSampleBufferConfigFromExecConf
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
 import org.embulk.config.Config;
 import org.embulk.config.ConfigDefault;
 import org.embulk.config.ConfigDiff;
@@ -130,16 +132,24 @@ public class FileInputRunner implements InputPlugin, ConfigurableGuessInputPlugi
         List<DecoderPlugin> decoderPlugins = newDecoderPlugins(task);
         ParserPlugin parserPlugin = newParserPlugin(task);
 
-        final TransactionalFileInput tran = fileInputPlugin.open(task.getFileInputTaskSource(), taskIndex);
+        TransactionalFileInput tran = fileInputPlugin.open(task.getFileInputTaskSource(), taskIndex);
         try (CloseResource closer = new CloseResource(tran)) {
             try (AbortTransactionResource aborter = new AbortTransactionResource(tran)) {
                 FileInput fileInput = DecodersInternal.open(decoderPlugins, task.getDecoderTaskSources(), tran);
                 closer.closeThis(fileInput);
-                parserPlugin.run(task.getParserTaskSource(), schema, fileInput, output);
+                if (fileInput instanceof TransactionalFileInput) {
+                    aborter.abortThis((Transactional) fileInput);
+                    tran = (TransactionalFileInput) fileInput;
+                }
+                final Optional<TaskReport> optionalParserTaskReport
+                        = parserPlugin.runThenReturnTaskReport(task.getParserTaskSource(), schema, fileInput, output);
 
                 TaskReport report = tran.commit();  // TODO check output.finish() is called. wrap
                 aborter.dontAbort();
-                return report;
+                return optionalParserTaskReport.map(r -> {
+                    r.merge(report);
+                    return r;
+                }).orElse(report);
             }
         }
     }
