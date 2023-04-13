@@ -446,6 +446,9 @@ final class CommandLineImpl extends org.embulk.cli.CommandLine {
     static final Option CONFIG_DIFF = Option.builder("c").longOpt("config-diff").hasArg().argName("PATH")
             .desc("Path to a file of the next configuration diff").build();
 
+    static final Option TASK_REPORT = Option.builder("t").longOpt("task-report").hasArg().argName("PATH")
+            .desc("Path to a file of task report").build();
+
     static final Option VERTICAL = Option.builder("G").longOpt("vertical")
             .desc("Use vertical output format").build();
 
@@ -510,7 +513,8 @@ final class CommandLineImpl extends org.embulk.cli.CommandLine {
             .addOption(new PlaceholderOption("Other 'run' options:"))
             .addOption(RESUME_STATE_RUN)
             .addOption(OUTPUT)
-            .addOption(CONFIG_DIFF);
+            .addOption(CONFIG_DIFF)
+            .addOption(TASK_REPORT);
 
     private static final String RUN_HEADER =
             "\n"

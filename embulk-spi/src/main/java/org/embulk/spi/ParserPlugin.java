@@ -16,13 +16,16 @@
 
 package org.embulk.spi;
 
+import java.util.Optional;
+
 import org.embulk.config.ConfigSource;
+import org.embulk.config.TaskReport;
 import org.embulk.config.TaskSource;
 
 /**
  * The main class that a Parser Plugin implements.
  *
- * <p>A Parser Plugin parses a set of byte buffers in {@link org.embulk.spi.FileInput} from a File Input Plugin, or an Decoder
+ * <p>A Parser Plugin parses a set of byte buffers in {@link FileInput} from a File Input Plugin, or an Decoder
  * Plugin, so that parsed input is read from an Output Plugin, or a Filter Plugin.
  *
  * @since 0.4.0
@@ -37,10 +40,10 @@ public interface ParserPlugin {
         /**
          * Runs the following tasks of the Parser Plugin.
          *
-         * <p>It would be executed at the end of {@link #transaction(org.embulk.config.ConfigSource, ParserPlugin.Control)}.
+         * <p>It would be executed at the end of {@link #transaction(ConfigSource, Control)}.
          *
-         * @param taskSource  {@link org.embulk.config.TaskSource} processed for tasks from {@link org.embulk.config.ConfigSource}
-         * @param schema  {@link org.embulk.spi.Schema} to be parsed to
+         * @param taskSource  {@link TaskSource} processed for tasks from {@link ConfigSource}
+         * @param schema  {@link Schema} to be parsed to
          *
          * @since 0.4.0
          */
@@ -55,18 +58,33 @@ public interface ParserPlugin {
      *
      * @since 0.4.0
      */
-    void transaction(ConfigSource config, ParserPlugin.Control control);
+    void transaction(ConfigSource config, Control control);
 
     /**
      * Runs each parsing task.
      *
-     * @param taskSource  a configuration processed for the task from {@link org.embulk.config.ConfigSource}
-     * @param schema  {@link org.embulk.spi.Schema} to be parsed to
-     * @param input  {@link org.embulk.spi.FileOutput} that is read from a File Input Plugin, or a Decoder Plugin
-     * @param output  {@link org.embulk.spi.PageOutput} to write parsed input so that the input is read from an Output Plugin, or
+     * @param taskSource  a configuration processed for the task from {@link ConfigSource}
+     * @param schema  {@link Schema} to be parsed to
+     * @param input  {@link FileOutput} that is read from a File Input Plugin, or a Decoder Plugin
+     * @param output  {@link PageOutput} to write parsed input so that the input is read from an Output Plugin, or
      *     another Filter Plugin
      *
      * @since 0.4.0
      */
     void run(TaskSource taskSource, Schema schema, FileInput input, PageOutput output);
+
+    /**
+     * Runs each parsing task and return TaskReport
+     *
+     * @param taskSource  a configuration processed for the task from {@link ConfigSource}
+     * @param schema  {@link Schema} to be parsed to
+     * @param input  {@link FileOutput} that is read from a File Input Plugin, or a Decoder Plugin
+     * @param output  {@link PageOutput} to write parsed input so that the input is read from an Output Plugin, or
+     *     another Filter Plugin
+     * @return the {@link TaskReport} in {@link Optional}
+     */
+    default Optional<TaskReport> runThenReturnTaskReport(TaskSource taskSource, Schema schema, FileInput input, PageOutput output) {
+        this.run(taskSource, schema, input, output);
+        return Optional.empty();
+    }
 }
