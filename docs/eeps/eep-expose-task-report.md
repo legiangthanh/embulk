@@ -67,7 +67,7 @@ ExecutionResult class will add two properties inputTaskReports and outputTaskRep
 ```java
 package org.embulk.exec;
 
-public interface ExecutionResult {
+public class ExecutionResult {
 
     <snip>
     private List<TaskReport> inputTaskReports = new ArrayList<>();
@@ -115,8 +115,8 @@ public interface FileInputRunner {
 
                 TaskReport report = tran.commit();  // TODO check output.finish() is called. wrap
                 aborter.dontAbort();
-                optionalParserTaskReport.ifPresent(r -> {
-                    r.setNested("parser", report);
+                optionalParserTaskReport.ifPresent(report -> {
+                    r.setNested("parser", r);
                 });
                 return report;
             }
@@ -149,6 +149,48 @@ public interface FileOutputRunner {
         }
         return taskReport;
     }
+}
+```
+
+### Changing in class `Report`
+```java
+package org.embulk.exec;
+
+import java.util.List;
+
+import org.embulk.config.TaskReport;
+
+public class Report {
+    private final List<TaskReport> input;
+    private final List<TaskReport> output;
+
+    public Report(List<TaskReport> input, List<TaskReport> output) {
+        this.input = input;
+        this.output = output;
+    }
+
+    public List<TaskReport> getInput() {
+        return input;
+    }
+
+    public List<TaskReport> getOutput() {
+        return output;
+    }
+}
+```
+
+### Changing in class `CommandLineImpl`
+
+This change add a new option to write task report.
+
+```java
+package org.embulk.deps.cli;
+
+public class CommandLineImpl {
+    <snip>
+    static final Option TASK_REPORT = Option.builder("t").longOpt("task-report").hasArg().argName("PATH")
+            .desc("Path to a file of task report").build();
+    <snip>
 }
 ```
 
