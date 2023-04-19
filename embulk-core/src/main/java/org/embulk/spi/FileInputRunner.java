@@ -142,7 +142,7 @@ public class FileInputRunner implements InputPlugin, ConfigurableGuessInputPlugi
 
                 TaskReport report = tran.commit();  // TODO check output.finish() is called. wrap
                 aborter.dontAbort();
-                optionalParserTaskReport.ifPresent(r -> r.setNested("parser", report));
+                optionalParserTaskReport.ifPresent(r -> report.setNested("parser", r));
                 return report;
             }
         }
