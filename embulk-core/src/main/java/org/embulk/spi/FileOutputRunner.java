@@ -2,6 +2,9 @@ package org.embulk.spi;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import org.embulk.config.Config;
 import org.embulk.config.ConfigDefault;
 import org.embulk.config.ConfigDiff;
@@ -119,13 +122,15 @@ public class FileOutputRunner implements OutputPlugin {
                 aborter.abortThis(finalOutput);
                 closer.closeThis(finalOutput);
 
-                FileOutput encodedOutput = EncodersInternal.open(encoderPlugins, task.getEncoderTaskSources(), finalOutput);
+                EncodersInternal.FileOutputEncoderOpen fileOutputEncoderOpen
+                        = EncodersInternal.open(encoderPlugins, task.getEncoderTaskSources(), finalOutput);
+                FileOutput encodedOutput = fileOutputEncoderOpen.getOut();
                 closer.closeThis(encodedOutput);
 
                 PageOutput output = formatterPlugin.open(task.getFormatterTaskSource(), schema, encodedOutput);
                 closer.closeThis(output);
 
-                TransactionalPageOutput ret = new DelegateTransactionalPageOutput(finalOutput, output);
+                TransactionalPageOutput ret = new DelegateTransactionalPageOutput(finalOutput, output, fileOutputEncoderOpen.getEncoder());
                 aborter.dontAbort();
                 closer.dontClose();  // ownership of output is transferred to caller (input plugin). the owner will close output.
                 return ret;
@@ -136,10 +141,12 @@ public class FileOutputRunner implements OutputPlugin {
     private static class DelegateTransactionalPageOutput implements TransactionalPageOutput {
         private final Transactional tran;
         private final PageOutput output;
+        private final List<FileOutput> encoder;
 
-        public DelegateTransactionalPageOutput(Transactional tran, PageOutput output) {
+        public DelegateTransactionalPageOutput(Transactional tran, PageOutput output, List<FileOutput> encoder) {
             this.tran = tran;
             this.output = output;
+            this.encoder = encoder;
         }
 
         @Override
@@ -166,14 +173,19 @@ public class FileOutputRunner implements OutputPlugin {
         public TaskReport commit() {
             // TODO check finished
             TaskReport taskReport = tran.commit();
-            if (output instanceof TransactionalPageOutput) {
-                TaskReport outputTaskReport = ((TransactionalPageOutput) output).commit();
-                if (taskReport != null && outputTaskReport != null) {
-                    taskReport.merge(outputTaskReport);
-                } else if (taskReport == null) {
-                    taskReport = outputTaskReport;
-                }
+            if (taskReport == null) {
+                taskReport = ExecInternal.sessionInternal().newTaskReport();
             }
+            Optional<TaskReport> formatterReport = output.getTaskReport();
+            if (formatterReport.isPresent()) {
+                taskReport.set("formatter", formatterReport.get());
+            }
+            List<TaskReport> encoderTaskReports = encoder
+                    .stream()
+                    .filter(d -> d.getTaskReport().isPresent())
+                    .map(d -> d.getTaskReport().get())
+                    .collect(Collectors.toList());
+            taskReport.set("encoder", encoderTaskReports);
             return taskReport;
         }
     }

@@ -1,6 +1,8 @@
 package org.embulk.spi.util;
 
 import java.util.List;
+import java.util.stream.Collectors;
+
 import org.embulk.config.TaskReport;
 import org.embulk.config.TaskSource;
 import org.embulk.spi.AbortTransactionResource;
@@ -54,7 +56,8 @@ public abstract class ExecutorsInternal {
         // essential exception.
         try (CloseResource closer = new CloseResource(tran)) {
             try (AbortTransactionResource aborter = new AbortTransactionResource(tran)) {
-                PageOutput filtered = FiltersInternal.open(filterPlugins, filterTaskSources, filterSchemas, tran);
+                FiltersInternal.PageOutputFilterOpen openedPageOutput = FiltersInternal.open(filterPlugins, filterTaskSources, filterSchemas, tran);
+                PageOutput filtered = openedPageOutput.getOut();
                 closer.closeThis(filtered);
 
                 TaskReport inputTaskReport = inputPlugin.run(inputTaskSource, inputSchema, taskIndex, filtered);
@@ -69,6 +72,11 @@ public abstract class ExecutorsInternal {
                 if (outputTaskReport == null) {
                     outputTaskReport = exec.newTaskReport();
                 }
+                List<TaskReport> filteredTaskReports = openedPageOutput.getFiltered()
+                        .stream().filter(f -> f.getTaskReport().isPresent())
+                        .map(f->f.getTaskReport().get())
+                        .collect(Collectors.toList());
+                outputTaskReport.set("filtered", filteredTaskReports);
                 callback.outputCommitted(outputTaskReport);  // TODO check output.finish() is called. wrap or abstract
             }
         }

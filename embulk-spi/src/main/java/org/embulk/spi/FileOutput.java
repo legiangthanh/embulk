@@ -16,6 +16,10 @@
 
 package org.embulk.spi;
 
+import org.embulk.config.TaskReport;
+
+import java.util.Optional;
+
 /**
  * Represents a series of file-like byte sequence outputs into a File Output Plugin.
  *
@@ -52,4 +56,11 @@ public interface FileOutput extends AutoCloseable {
      */
     @Override
     void close();
+
+    /**
+     * the implementation should append this Report to the list return by downstream/upstream
+     */
+    default Optional<TaskReport> getTaskReport() {
+        return Optional.empty();
+    }
 }

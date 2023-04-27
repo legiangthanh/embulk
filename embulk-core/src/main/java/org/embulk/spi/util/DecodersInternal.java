@@ -29,14 +29,34 @@ public abstract class DecodersInternal {
         new RecursiveControl(plugins, configs, control).transaction();
     }
 
-    public static FileInput open(List<DecoderPlugin> plugins, List<TaskSource> taskSources, FileInput input) {
+    public static FileInputDecoderOpen open(List<DecoderPlugin> plugins, List<TaskSource> taskSources, FileInput input) {
         FileInput in = input;
+        List<FileInput> decoder = new ArrayList<>();
         int pos = 0;
         while (pos < plugins.size()) {
             in = plugins.get(pos).open(taskSources.get(pos), in);
+            decoder.add(in);
             pos++;
         }
-        return in;
+        return new FileInputDecoderOpen(in, decoder);
+    }
+    
+    public static class FileInputDecoderOpen {
+        final FileInput in;
+        final List<FileInput> decoder;
+
+        public FileInputDecoderOpen(FileInput in, List<FileInput> decoder) {
+            this.in = in;
+            this.decoder = decoder;
+        }
+
+        public FileInput getIn() {
+            return in;
+        }
+        
+        public List<FileInput> getDecoder() {
+            return decoder;
+        }
     }
 
     private static class RecursiveControl {

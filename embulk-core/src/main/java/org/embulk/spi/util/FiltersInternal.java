@@ -43,15 +43,35 @@ public abstract class FiltersInternal {
         new RecursiveControl(plugins, configs, control).transaction(inputSchema);
     }
 
-    public static PageOutput open(List<FilterPlugin> plugins, List<TaskSource> taskSources,
-            List<Schema> filterSchemas, PageOutput output) {
+    public static PageOutputFilterOpen open(List<FilterPlugin> plugins, List<TaskSource> taskSources,
+                                            List<Schema> filterSchemas, PageOutput output) {
         PageOutput out = output;
+        List<PageOutput> filtered = new ArrayList<>();
         int pos = plugins.size() - 1;
         while (pos >= 0) {
             out = plugins.get(pos).open(taskSources.get(pos), filterSchemas.get(pos), filterSchemas.get(pos + 1), out);
+            filtered.add(out);
             pos--;
         }
-        return out;
+        return new PageOutputFilterOpen(out, filtered);
+    }
+    
+    public static class PageOutputFilterOpen {
+        final PageOutput out;
+        final List<PageOutput> filtered;
+
+        public PageOutputFilterOpen(PageOutput out, List<PageOutput> filtered) {
+            this.out = out;
+            this.filtered = filtered;
+        }
+
+        public PageOutput getOut() {
+            return out;
+        }
+
+        public List<PageOutput> getFiltered() {
+            return filtered;
+        }
     }
 
     private static class RecursiveControl {

@@ -51,7 +51,7 @@ public abstract class Filters {
         FiltersInternal.transaction(plugins, configs, inputSchema, control);
     }
 
-    public static PageOutput open(List<FilterPlugin> plugins, List<TaskSource> taskSources,
+    public static FiltersInternal.PageOutputFilterOpen open(List<FilterPlugin> plugins, List<TaskSource> taskSources,
             List<Schema> filterSchemas, PageOutput output) {
         return FiltersInternal.open(plugins, taskSources, filterSchemas, output);
     }

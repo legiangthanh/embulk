@@ -118,7 +118,7 @@ public class PreviewExecutor {
                                     try {
                                         for (int taskIndex = 0; taskIndex < taskCount; taskIndex++) {
                                             try {
-                                                out = FiltersInternal.open(filterPlugins, filterTasks, filterSchemas, out);
+                                                out = FiltersInternal.open(filterPlugins, filterTasks, filterSchemas, out).getOut();
                                                 input.run(inputTask, inputSchema, taskIndex, out);
                                             } catch (NoSampleException ex) {
                                                 if (taskIndex == taskCount - 1) {

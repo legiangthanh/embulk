@@ -36,7 +36,7 @@ public abstract class Decoders {
         DecodersInternal.transaction(plugins, configs, control);
     }
 
-    public static FileInput open(List<DecoderPlugin> plugins, List<TaskSource> taskSources,
+    public static DecodersInternal.FileInputDecoderOpen open(List<DecoderPlugin> plugins, List<TaskSource> taskSources,
             FileInput input) {
         return DecodersInternal.open(plugins, taskSources, input);
     }

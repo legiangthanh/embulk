@@ -30,15 +30,35 @@ public abstract class EncodersInternal {
         new RecursiveControl(plugins, configs, control).transaction();
     }
 
-    public static FileOutput open(List<EncoderPlugin> plugins, List<TaskSource> taskSources,
+    public static FileOutputEncoderOpen open(List<EncoderPlugin> plugins, List<TaskSource> taskSources,
             FileOutput output) {
         FileOutput out = output;
+        List<FileOutput> encoder = new ArrayList<>();
         int pos = 0;
         while (pos < plugins.size()) {
             out = plugins.get(pos).open(taskSources.get(pos), out);
+            encoder.add(out);
             pos++;
         }
-        return out;
+        return new FileOutputEncoderOpen(out, encoder);
+    }
+
+    public static class FileOutputEncoderOpen {
+        final FileOutput out;
+        final List<FileOutput> encoder;
+
+        public FileOutputEncoderOpen(FileOutput out, List<FileOutput> encoder) {
+            this.out = out;
+            this.encoder = encoder;
+        }
+
+        public FileOutput getOut() {
+            return out;
+        }
+
+        public List<FileOutput> getEncoder() {
+            return encoder;
+        }
     }
 
     private static class RecursiveControl {

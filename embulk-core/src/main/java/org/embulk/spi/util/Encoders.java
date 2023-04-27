@@ -35,7 +35,7 @@ public abstract class Encoders {
         EncodersInternal.transaction(plugins, configs, control);
     }
 
-    public static FileOutput open(List<EncoderPlugin> plugins, List<TaskSource> taskSources,
+    public static EncodersInternal.FileOutputEncoderOpen open(List<EncoderPlugin> plugins, List<TaskSource> taskSources,
             FileOutput output) {
         return EncodersInternal.open(plugins, taskSources, output);
     }

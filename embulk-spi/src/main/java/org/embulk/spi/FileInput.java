@@ -16,6 +16,8 @@
 
 package org.embulk.spi;
 
+import org.embulk.config.TaskReport;
+
 import java.util.Optional;
 
 /**
@@ -63,6 +65,10 @@ public interface FileInput extends AutoCloseable {
      * @since 0.9.12
      */
     default Optional<String> hintOfCurrentInputFileNameForLogging() {
+        return Optional.empty();
+    }
+
+    default Optional<TaskReport> getTaskReport() {
         return Optional.empty();
     }
 }

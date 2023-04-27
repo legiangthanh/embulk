@@ -2,9 +2,12 @@ package org.embulk.spi;
 
 import static org.embulk.exec.GuessExecutor.createSampleBufferConfigFromExecConfig;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
 import org.embulk.config.Config;
 import org.embulk.config.ConfigDefault;
 import org.embulk.config.ConfigDiff;
@@ -131,25 +134,32 @@ public class FileInputRunner implements InputPlugin, ConfigurableGuessInputPlugi
         List<DecoderPlugin> decoderPlugins = newDecoderPlugins(task);
         ParserPlugin parserPlugin = newParserPlugin(task);
 
-        TransactionalFileInput tran = fileInputPlugin.open(task.getFileInputTaskSource(), taskIndex);
+        final TransactionalFileInput tran = fileInputPlugin.open(task.getFileInputTaskSource(), taskIndex);
         try (CloseResource closer = new CloseResource(tran)) {
             try (AbortTransactionResource aborter = new AbortTransactionResource(tran)) {
-                FileInput fileInput = DecodersInternal.open(decoderPlugins, task.getDecoderTaskSources(), tran);
+                DecodersInternal.FileInputDecoderOpen fileInputDecoderOpen
+                        = DecodersInternal.open(decoderPlugins, task.getDecoderTaskSources(), tran);
+                FileInput fileInput = fileInputDecoderOpen.getIn();
                 closer.closeThis(fileInput);
-                if (fileInput instanceof TransactionalFileInput) {
-                    aborter.abortThis((Transactional) fileInput);
-                    tran = (TransactionalFileInput) fileInput;
-                }
 
                 final Optional<TaskReport> optionalParserTaskReport
                         = parserPlugin.runThenReturnTaskReport(task.getParserTaskSource(), schema, fileInput, output);
 
                 TaskReport report = tran.commit();  // TODO check output.finish() is called. wrap
                 aborter.dontAbort();
-                return optionalParserTaskReport.map(r -> {
-                    r.merge(report);
-                    return r;
-                }).orElse(report);
+                if (report != null) {
+                    report = ExecInternal.sessionInternal().newTaskReport();
+                }
+                if(optionalParserTaskReport.isPresent()) {
+                    report.set("parser", optionalParserTaskReport.get());
+                }
+                List<TaskReport> decoderTaskReports = fileInputDecoderOpen.getDecoder()
+                        .stream()
+                        .filter(d -> d.getTaskReport().isPresent())
+                        .map(d -> d.getTaskReport().get())
+                        .collect(Collectors.toList());
+                report.set("decoder", decoderTaskReports);
+                return report;
             }
         }
     }

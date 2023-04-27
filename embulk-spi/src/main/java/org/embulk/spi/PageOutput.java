@@ -16,6 +16,11 @@
 
 package org.embulk.spi;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
+import org.embulk.config.TaskReport;
 /**
  * Represents a sequence of {@link Page}s as output, passed from an Input Plugin via Filter Plugins to an Output Plugin.
  *
@@ -36,4 +41,8 @@ public interface PageOutput extends AutoCloseable {
      * @since 0.4.0
      */
     void close();
+    
+    default Optional<TaskReport> getTaskReport() {
+        return Optional.empty();
+    }
 }

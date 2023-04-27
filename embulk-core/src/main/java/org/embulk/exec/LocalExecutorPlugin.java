@@ -11,6 +11,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+
 import org.embulk.EmbulkSystemProperties;
 import org.embulk.config.ConfigSource;
 import org.embulk.config.TaskReport;
@@ -389,7 +391,7 @@ public class LocalExecutorPlugin implements ExecutorPlugin {
         private final int scatterCount;
 
         private final TransactionalPageOutput[] trans;
-        private final PageOutput[] filtereds;
+        private final FiltersInternal.PageOutputFilterOpen[] filtereds;
         private final CloseResource[] closeThese;
 
         private final OutputWorker[] outputWorkers;
@@ -402,7 +404,7 @@ public class LocalExecutorPlugin implements ExecutorPlugin {
             this.scatterCount = scatterCount;
 
             this.trans = new TransactionalPageOutput[scatterCount];
-            this.filtereds = new PageOutput[scatterCount];
+            this.filtereds = new FiltersInternal.PageOutputFilterOpen[scatterCount];
             this.closeThese = new CloseResource[scatterCount];
             for (int i = 0; i < scatterCount; i++) {
                 closeThese[i] = new CloseResource();
@@ -425,16 +427,16 @@ public class LocalExecutorPlugin implements ExecutorPlugin {
             for (int i = 0; i < scatterCount; i++) {
                 TransactionalPageOutput tran = trans[i];
                 if (tran != null) {
-                    PageOutput filtered = FiltersInternal.open(filterPlugins, filterTaskSources, filterSchemas, trans[i]);
+                    FiltersInternal.PageOutputFilterOpen filtered = FiltersInternal.open(filterPlugins, filterTaskSources, filterSchemas, trans[i]);
                     filtereds[i] = filtered;
-                    closeThese[i].closeThis(filtered);
+                    closeThese[i].closeThis(filtered.getOut());
                 }
             }
         }
 
         public void startWorkers(ExecutorService outputExecutor) {
             for (int i = 0; i < scatterCount; i++) {
-                PageOutput filtered = filtereds[i];
+                PageOutput filtered = filtereds[i].getOut();
                 if (filtered != null) {
                     outputWorkers[i] = new OutputWorker(filtered, outputExecutor);
                 }
@@ -457,7 +459,7 @@ public class LocalExecutorPlugin implements ExecutorPlugin {
             completeWorkers();
             for (int i = 0; i < scatterCount; i++) {
                 if (filtereds[i] != null) {
-                    filtereds[i].finish();
+                    filtereds[i].getOut().finish();
                 }
             }
         }
@@ -488,6 +490,11 @@ public class LocalExecutorPlugin implements ExecutorPlugin {
                     if (outputTaskReport == null) {
                         outputTaskReport = Exec.newTaskReport();
                     }
+                    List<TaskReport> filteredTaskReports = filtereds[i].getFiltered()
+                            .stream().filter(f -> f.getTaskReport().isPresent())
+                            .map(f->f.getTaskReport().get())
+                            .collect(Collectors.toList());
+                    outputTaskReport.set("filter", filteredTaskReports);
                     state.getOutputTaskState(outputTaskIndex).setTaskReport(outputTaskReport);
                 }
             }
